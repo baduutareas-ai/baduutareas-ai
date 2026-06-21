@@ -1,0 +1,686 @@
+{% extends "base.html" %}
+
+{% block title %}Exámenes - GradeScanner{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+            {% if session.get('user_role') == 'estudiante' %}
+            <h1 class="text-3xl font-bold text-gray-900">
+                <i class="fas fa-graduation-cap text-indigo-600 mr-2"></i>Mis Exámenes
+            </h1>
+            <p class="text-gray-600 mt-2">Aquí puedes consultar todos tus exámenes registrados</p>
+            {% else %}
+            <h1 class="text-3xl font-bold text-gray-900">
+                <i class="fas fa-file-alt text-indigo-600 mr-2"></i>Exámenes
+            </h1>
+            <p class="text-gray-600 mt-2">Historial de exámenes calificados</p>
+            {% endif %}
+        </div>
+        {% if session.get('user_role') in ['admin', 'profesor'] %}
+        <button id="btn-create-exam" onclick="openManualCreateModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-lg font-medium transition shadow-md flex items-center justify-center whitespace-nowrap">
+            <i class="fas fa-plus mr-2"></i>Crear Examen Manual
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Filtros (ocultos para estudiante) -->
+    {% if session.get('user_role') in ['admin', 'profesor'] %}
+    <div class="bg-white rounded-xl shadow-lg p-4 mb-6 overflow-x-auto">
+        <div class="flex flex-col md:flex-row gap-4 min-w-max md:min-w-0">
+            <input id="filter-nombre" type="text" placeholder="🔍 Buscar por estudiante..."
+                class="p-3 border rounded-lg flex-1" oninput="loadExams()">
+            <select id="filter-seccion" class="p-3 border rounded-lg" onchange="loadExams()">
+                <option value="">Todas las secciones</option>
+            </select>
+            <select id="filter-estado" class="p-3 border rounded-lg" onchange="loadExams()">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="procesado">Procesado</option>
+                <option value="revisado">Revisado</option>
+            </select>
+            <button onclick="exportCSV()" class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium whitespace-nowrap">
+                <i class="fas fa-download mr-1"></i> Exportar CSV
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <!-- Estudiante: solo filtro de sección y estado -->
+    <div class="bg-white rounded-xl shadow-lg p-4 mb-6">
+        <div class="flex flex-col sm:flex-row gap-4">
+            <select id="filter-seccion" class="p-3 border rounded-lg flex-1" onchange="loadExams()">
+                <option value="">Todas mis secciones</option>
+            </select>
+            <select id="filter-estado" class="p-3 border rounded-lg" onchange="loadExams()">
+                <option value="">Todos los estados</option>
+                <option value="revisado">Revisado</option>
+                <option value="procesado">Procesado</option>
+                <option value="pendiente">Pendiente</option>
+            </select>
+        </div>
+    </div>
+    <!-- Oculto para la lógica JS -->
+    <input id="filter-nombre" type="text" class="hidden">
+    {% endif %}
+
+    <!-- Stats rápidas -->
+    <div id="quick-stats" class="grid grid-cols-3 gap-4 mb-6 hidden">
+        <div class="bg-green-50 rounded-xl p-4 text-center border border-green-200">
+            <p class="text-2xl font-bold text-green-700" id="qs-aprobados">0</p>
+            <p class="text-sm text-green-600">Aprobados ≥ 10</p>
+        </div>
+        <div class="bg-yellow-50 rounded-xl p-4 text-center border border-yellow-200">
+            <p class="text-2xl font-bold text-yellow-700" id="qs-regular">0</p>
+            <p class="text-sm text-yellow-600">Regular 7–9</p>
+        </div>
+        <div class="bg-red-50 rounded-xl p-4 text-center border border-red-200">
+            <p class="text-2xl font-bold text-red-700" id="qs-reprobados">0</p>
+            <p class="text-sm text-red-600">Reprobados &lt; 7</p>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="bg-white rounded-xl shadow-lg overflow-x-auto">
+        <table class="w-full min-w-[800px]">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="text-left py-4 px-6 text-gray-600">Estudiante</th>
+                    <th class="text-left py-4 px-6 text-gray-600">Título / Evaluación</th>
+                    <th class="text-left py-4 px-6 text-gray-600">Sección</th>
+                    <th class="text-left py-4 px-6 text-gray-600">Estado</th>
+                    <th class="text-left py-4 px-6 text-gray-600">Nota</th>
+                    <th class="text-left py-4 px-6 text-gray-600">Fecha</th>
+                    <th class="text-left py-4 px-6 text-gray-600">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="exams-list"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Detalle -->
+<div id="exam-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 my-8">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-xl font-bold">Detalle del Examen</h3>
+                <button onclick="closeExamModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="exam-detail"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar Manual -->
+<div id="manual-exam-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 my-8">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-4 border-b pb-3">
+                <h3 class="text-xl font-bold text-gray-900" id="manual-modal-title">Registrar Examen Manual</h3>
+                <button onclick="closeManualExamModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="manual-exam-form" onsubmit="saveManualExam(event)">
+                <input type="hidden" id="manual-exam-id">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Título / Evaluación</label>
+                        <input type="text" id="manual-titulo" required class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ej: Examen 1">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Estudiante</label>
+                        <select id="manual-estudiante" required class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sección</label>
+                        <select id="manual-seccion" required class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" onchange="onManualSeccionChange()">
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Plantilla / Clave</label>
+                        <select id="manual-plantilla" required class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" onchange="loadPlantillaQuestions()">
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                    <textarea id="manual-observaciones" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" rows="2" placeholder="Observaciones sobre el examen..."></textarea>
+                </div>
+                <div class="border-t pt-3">
+                    <h4 class="font-bold text-gray-800 mb-2">Respuestas y Puntajes por Pregunta:</h4>
+                    <div id="manual-questions-list" class="space-y-3 max-h-64 overflow-y-auto bg-gray-50 p-3 rounded-lg border">
+                        <p class="text-xs text-gray-500 italic">Selecciona una plantilla para cargar las preguntas</p>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6 border-t pt-3">
+                    <button type="button" onclick="closeManualExamModal()" class="px-6 py-2 border rounded-lg hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold shadow">Guardar Examen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+    const userRole = "{{ session.get('user_role', '') }}";
+    let allExams = [];
+    let filteredExams = [];
+
+    async function loadSeccionesForFilter() {
+        try {
+            const res = await fetch('/api/secciones');
+            const secciones = await res.json();
+            const select = document.getElementById('filter-seccion');
+            secciones.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.nombre_completo;
+                select.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Error cargando secciones', e);
+        }
+    }
+
+    async function loadExams() {
+        const seccionId = document.getElementById('filter-seccion').value;
+        const estado = document.getElementById('filter-estado').value;
+        const nombreFiltro = document.getElementById('filter-nombre').value.toLowerCase().trim();
+
+        let url = '/api/examenes?';
+        if (seccionId) url += `seccion_id=${seccionId}&`;
+        if (estado) url += `estado=${estado}`;
+
+        const res = await fetch(url);
+        allExams = await res.json();
+
+        // Filtrar localmente por nombre
+        let examenes = allExams;
+        if (nombreFiltro) {
+            examenes = examenes.filter(e =>
+                (e.nombre_estudiante || e.titulo || '').toLowerCase().includes(nombreFiltro)
+            );
+        }
+        
+        filteredExams = examenes;
+
+        // Stats rápidas
+        const conNota = examenes.filter(e => e.nota_final !== null);
+        if (conNota.length > 0) {
+            document.getElementById('quick-stats').classList.remove('hidden');
+            document.getElementById('qs-aprobados').textContent = conNota.filter(e => e.nota_final >= 10).length;
+            document.getElementById('qs-regular').textContent = conNota.filter(e => e.nota_final >= 7 && e.nota_final < 10).length;
+            document.getElementById('qs-reprobados').textContent = conNota.filter(e => e.nota_final < 7).length;
+        } else {
+            document.getElementById('quick-stats').classList.add('hidden');
+        }
+
+        const tbody = document.getElementById('exams-list');
+        if (examenes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">No hay exámenes</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = examenes.map(e => {
+            const nota = e.nota_final;
+            const notaColor = nota === null ? 'text-gray-400' : nota >= 10 ? 'text-green-600' : nota >= 7 ? 'text-yellow-600' : 'text-red-600';
+            const notaBg = nota === null ? '' : nota >= 10 ? 'bg-green-50' : nota >= 7 ? 'bg-yellow-50' : 'bg-red-50';
+            const isStudent = userRole === 'estudiante';
+            const editBtnHtml = isStudent ? '' : `<button onclick="editExam(${e.id})" class="text-indigo-600 hover:text-indigo-800 mr-3" title="Editar"><i class="fas fa-edit"></i></button>`;
+            const deleteBtnHtml = isStudent ? '' : `<button onclick="deleteExam(${e.id})" class="text-red-500 hover:text-red-700" title="Eliminar"><i class="fas fa-trash"></i></button>`;
+            
+            return `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="py-4 px-6">
+                    ${e.nombre_estudiante 
+                        ? `<span class="font-semibold text-gray-800"><i class="fas fa-user text-indigo-400 mr-1 text-xs"></i>${e.nombre_estudiante}</span>`
+                        : `<span class="text-gray-400 italic text-sm">Sin nombre</span>`}
+                </td>
+                <td class="py-4 px-6 text-gray-700">${e.titulo}</td>
+                <td class="py-4 px-6 text-sm text-gray-500">${e.seccion?.nombre_completo || '-'}</td>
+                <td class="py-4 px-6">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${e.estado === 'revisado' ? 'bg-green-100 text-green-800' : e.estado === 'procesado' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}">${e.estado}</span>
+                </td>
+                <td class="py-4 px-6 ${notaBg} rounded">
+                    <span class="font-bold text-lg ${notaColor}">${nota !== null ? nota : '-'}</span>
+                    ${nota !== null ? '<span class="text-xs text-gray-400">/20</span>' : ''}
+                </td>
+                <td class="py-4 px-6 text-gray-500 text-sm">${new Date(e.fecha_escaneo).toLocaleDateString('es-ES', {day:'2-digit',month:'short',year:'numeric'})}</td>
+                <td class="py-4 px-6 font-medium text-center whitespace-nowrap">
+                    <button onclick="viewExam(${e.id})" class="text-gray-500 hover:text-gray-700 mr-3" title="Ver detalle"><i class="fas fa-eye"></i></button>
+                    ${editBtnHtml}
+                    ${deleteBtnHtml}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function viewExam(id) {
+        const res = await fetch(`/api/examenes/${id}`);
+        const e = await res.json();
+
+        let preguntasHtml = '';
+        if (e.preguntas && e.preguntas.length > 0) {
+            preguntasHtml = '<div class="mt-4"><h4 class="font-bold text-gray-700 mb-2">📋 Correcciones pregunta a pregunta:</h4><div class="space-y-2">';
+            e.preguntas.forEach(r => {
+                const esMulti = r.respuesta_correcta !== undefined && r.respuesta_correcta !== null;
+                const estaBien = esMulti ? (r.respuesta_estudiante === r.respuesta_correcta) : (r.puntos_obtenidos >= r.puntos * 0.5);
+                
+                preguntasHtml += `<div class="bg-gray-50 border-l-4 ${estaBien ? 'border-green-500' : 'border-red-500'} p-3 rounded shadow-sm">`;
+                
+                if (esMulti) {
+                    preguntasHtml += `
+                        <div class="flex justify-between items-center w-full">
+                            <span class="font-medium text-gray-800">
+                                <i class="fas ${estaBien ? 'fa-check text-green-500' : 'fa-times text-red-500'} mr-2"></i>
+                                P${r.numero}. ${r.respuesta_estudiante ? `Respondió: <strong class="${estaBien ? 'text-green-600' : 'text-red-500 line-through'}">${r.respuesta_estudiante}</strong>` : '<span class="text-gray-400 italic">No respondida</span>'}
+                            </span>
+                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-bold">
+                                Correcta: ${r.respuesta_correcta}
+                            </span>
+                        </div>`;
+                } else {
+                    const porc = r.coincidencias || 0;
+                    preguntasHtml += `
+                        <div class="w-full">
+                            <div class="flex justify-between mb-1">
+                                <span class="font-medium text-gray-800">
+                                    <i class="fas ${estaBien ? 'fa-check text-green-500' : 'fa-times text-red-500'} mr-1"></i>
+                                    P${r.numero} <span class="text-xs text-gray-500">(${r.puntos_obtenidos}/${r.puntos} pts)</span>
+                                </span>
+                                <span class="text-xs font-bold px-2 py-1 rounded-full ${porc >= 70 ? 'bg-green-100 text-green-700' : porc >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+                                    ${porc}% coincidencia
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-500">Esperadas: <span class="font-medium text-gray-700">${r.respuesta_esperada || '-'}</span></p>
+                            ${r.respuesta_texto ? `<p class="text-xs text-gray-400 mt-1 italic border-t pt-1 line-clamp-2">${r.respuesta_texto}</p>` : ''}
+                        </div>`;
+                }
+                preguntasHtml += '</div>';
+            });
+            preguntasHtml += '</div></div>';
+        }
+
+        const nota = e.nota_final;
+        const notaColor = nota === null ? 'text-gray-400' : nota >= 10 ? 'text-green-600' : nota >= 7 ? 'text-yellow-600' : 'text-red-600';
+
+        document.getElementById('exam-detail').innerHTML = `
+        <div class="space-y-3">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-lg font-bold text-gray-900">${e.nombre_estudiante || e.titulo}</p>
+                    ${e.nombre_estudiante ? `<p class="text-sm text-gray-500">${e.titulo}</p>` : ''}
+                </div>
+                <span class="px-3 py-1 rounded-full text-sm ${e.estado === 'revisado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${e.estado}</span>
+            </div>
+            <div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded-lg">
+                <div class="text-center">
+                    <p class="text-3xl font-bold ${notaColor}">${nota !== null ? nota : '—'}</p>
+                    <p class="text-xs text-gray-500">Nota /20</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-lg font-semibold text-gray-700">${e.seccion?.nombre_completo || '-'}</p>
+                    <p class="text-xs text-gray-500">Sección</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-lg font-semibold text-gray-700">${(e.confianza_ocr || 0).toFixed(1)}%</p>
+                    <p class="text-xs text-gray-500">Confianza OCR</p>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400"><i class="fas fa-calendar mr-1"></i>${new Date(e.fecha_escaneo).toLocaleString('es-ES')}</p>
+            ${preguntasHtml}
+            <details class="mt-2">
+                <summary class="cursor-pointer text-sm text-gray-500 hover:text-gray-700"><i class="fas fa-file-alt mr-1"></i>Ver texto extraído (crudo)</summary>
+                <pre class="bg-gray-50 p-3 rounded text-xs whitespace-pre-wrap max-h-40 overflow-y-auto mt-2">${e.texto_ocr || 'Sin texto'}</pre>
+            </details>
+            ${e.imagen_path ? `
+            <div class="mt-2 border-t pt-3">
+                <p class="text-sm font-medium text-gray-600 mb-2"><i class="fas fa-image mr-1"></i>Imagen escaneada</p>
+                <img src="${e.imagen_path}" class="w-full rounded-lg cursor-zoom-in hover:opacity-90 shadow" 
+                    onclick="window.open('${e.imagen_path}', '_blank')" title="Click para ampliar">
+            </div>` : ''}
+            ${userRole !== 'estudiante' ? `
+            <div class="mt-4 border-t pt-4 flex justify-end">
+                <button onclick="closeExamModal(); setTimeout(() => editExam(${e.id}), 300);" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-medium transition shadow-md">
+                    <i class="fas fa-edit mr-2"></i>Editar Respuestas
+                </button>
+            </div>` : ''}
+        </div>`;
+        document.getElementById('exam-modal').classList.remove('hidden');
+    }
+
+    function closeExamModal() {
+        document.getElementById('exam-modal').classList.add('hidden');
+    }
+
+    async function deleteExam(id) {
+        if (await Swal.fire({ title: '¿Eliminar examen?', text: 'Esta acción no se puede deshacer', icon: 'warning', showCancelButton: true, confirmButtonColor: '#EF4444', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar' }).then(r => r.isConfirmed)) {
+            await fetch(`/api/examenes/${id}`, { method: 'DELETE' });
+            Swal.fire('Eliminado', 'El examen fue eliminado.', 'success');
+            loadExams();
+        }
+    }
+
+    function exportCSV() {
+        if (!filteredExams.length) {
+            Swal.fire('Atención', 'No hay datos para exportar', 'warning');
+            return;
+        }
+        const rows = [['Estudiante', 'Título', 'Sección', 'Nota', 'Estado', 'Fecha']];
+        filteredExams.forEach(e => {
+            rows.push([
+                e.nombre_estudiante || '-',
+                e.titulo,
+                e.seccion?.nombre_completo || '-',
+                e.nota_final ?? '-',
+                e.estado,
+                new Date(e.fecha_escaneo).toLocaleDateString('es-ES')
+            ]);
+        });
+        const csvContent = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'examenes_gradescanner.csv'; a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Variables y lógica de Exámenes Manuales
+    let allManualSections = [];
+    let allManualPlantillas = [];
+    let allManualStudents = [];
+
+    async function loadManualDropdowns() {
+        // Load Students
+        try {
+            const res = await fetch('/api/users');
+            const users = await res.json();
+            allManualStudents = users.filter(u => u.role === 'estudiante');
+            const selectEst = document.getElementById('manual-estudiante');
+            selectEst.innerHTML = '<option value="">Seleccionar estudiante...</option>';
+            allManualStudents.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.nombre;
+                opt.textContent = `${e.nombre} (${e.username})`;
+                selectEst.appendChild(opt);
+            });
+        } catch (err) { console.error('Error loading users', err); }
+
+        // Load Sections
+        try {
+            const res = await fetch('/api/secciones');
+            allManualSections = await res.json();
+            const selectSec = document.getElementById('manual-seccion');
+            selectSec.innerHTML = '<option value="">Seleccionar sección...</option>';
+            allManualSections.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.nombre_completo;
+                selectSec.appendChild(opt);
+            });
+        } catch (err) { console.error('Error loading sections', err); }
+
+        // Load Templates
+        try {
+            const res = await fetch('/api/plantillas');
+            allManualPlantillas = await res.json();
+        } catch (err) { console.error('Error loading templates', err); }
+    }
+
+    function onManualSeccionChange() {
+        const secId = parseInt(document.getElementById('manual-seccion').value);
+        const selectP = document.getElementById('manual-plantilla');
+        selectP.innerHTML = '<option value="">Seleccionar plantilla...</option>';
+        
+        const filtered = secId 
+            ? allManualPlantillas.filter(p => p.seccion_id === secId)
+            : allManualPlantillas;
+            
+        filtered.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.nombre;
+            selectP.appendChild(opt);
+        });
+    }
+
+    async function loadPlantillaQuestions(selectedAnswers = null) {
+        const pId = parseInt(document.getElementById('manual-plantilla').value);
+        const container = document.getElementById('manual-questions-list');
+        if (!pId) {
+            container.innerHTML = '<p class="text-xs text-gray-500 italic">Selecciona una plantilla para cargar las preguntas</p>';
+            return;
+        }
+
+        const plantilla = allManualPlantillas.find(p => p.id === pId);
+        if (!plantilla) return;
+
+        let correctas = [];
+        try {
+            correctas = typeof plantilla.respuestas_correctas === 'string' 
+                ? JSON.parse(plantilla.respuestas_correctas) 
+                : plantilla.respuestas_correctas;
+        } catch (e) { console.error(e); }
+
+        if (!correctas || correctas.length === 0) {
+            container.innerHTML = '<p class="text-xs text-red-500 italic">Esta plantilla no tiene respuestas configuradas</p>';
+            return;
+        }
+
+        const correctAnswersSet = new Set(correctas.map(r => r.respuesta));
+        let optionsList = ['A', 'B', 'C', 'D'];
+        if (correctAnswersSet.has('V') || correctAnswersSet.has('F')) {
+            optionsList = ['V', 'F'];
+        } else {
+            const maxLetter = Array.from(correctAnswersSet).reduce((max, c) => c > max ? c : max, 'D');
+            const maxCode = maxLetter.charCodeAt(0);
+            if (maxCode >= 65 && maxCode <= 70) {
+                optionsList = [];
+                for (let c = 65; c <= maxCode; c++) {
+                    optionsList.push(String.fromCharCode(c));
+                }
+            }
+        }
+
+        container.innerHTML = correctas.map(c => {
+            const num = c.pregunta;
+            const pts = c.puntos || 1;
+            
+            const studentAns = selectedAnswers 
+                ? selectedAnswers.find(sa => sa.numero === num) 
+                : null;
+            const currentSelected = studentAns ? studentAns.respuesta_estudiante : '';
+            const currentPointsObtained = studentAns ? studentAns.puntos_obtenidos : 0;
+
+            return `
+            <div class="flex items-center justify-between border-b pb-2 mb-2 text-sm manual-question-row" data-number="${num}" data-pts-total="${pts}" data-correcta="${c.respuesta}">
+                <div class="flex items-center space-x-2">
+                    <span class="w-8 font-semibold">P${num}.</span>
+                    <div class="flex gap-2.5">
+                        ${optionsList.map(opt => {
+                            const isChecked = currentSelected === opt ? 'checked' : '';
+                            return `
+                            <label class="flex items-center space-x-1 cursor-pointer">
+                                <input type="radio" name="manual_ans_${num}" value="${opt}" ${isChecked} class="manual-ans-radio" onchange="autoCalculateManualScore(${num})">
+                                <span class="text-xs font-semibold uppercase text-gray-700">${opt}</span>
+                            </label>`;
+                        }).join('')}
+                        <label class="flex items-center space-x-1 cursor-pointer">
+                            <input type="radio" name="manual_ans_${num}" value="" ${currentSelected === '' ? 'checked' : ''} class="manual-ans-radio" onchange="autoCalculateManualScore(${num})">
+                            <span class="text-xs text-gray-400 italic">Vacío</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1 text-xs">
+                    <span>Pts:</span>
+                    <input type="number" step="0.1" value="${currentPointsObtained}" max="${pts}" min="0" class="w-14 p-1 border rounded text-center font-bold manual-pts-obtained" id="manual_pts_${num}">
+                    <span class="text-gray-400">/ ${pts}</span>
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+
+    function autoCalculateManualScore(questionNum) {
+        const row = document.querySelector(`.manual-question-row[data-number="${questionNum}"]`);
+        if (!row) return;
+        const selectedRadio = row.querySelector('.manual-ans-radio:checked');
+        const ans = selectedRadio ? selectedRadio.value : '';
+        const correct = row.getAttribute('data-correcta');
+        const ptsTotal = parseFloat(row.getAttribute('data-pts-total')) || 0;
+        
+        const ptsInput = document.getElementById(`manual_pts_${questionNum}`);
+        if (ptsInput) {
+            ptsInput.value = (ans === correct) ? ptsTotal : 0;
+        }
+    }
+
+    async function openManualCreateModal() {
+        document.getElementById('manual-modal-title').textContent = 'Registrar Examen Manual';
+        document.getElementById('manual-exam-id').value = '';
+        document.getElementById('manual-exam-form').reset();
+        document.getElementById('manual-questions-list').innerHTML = '<p class="text-xs text-gray-500 italic">Selecciona una plantilla para cargar las preguntas</p>';
+        
+        await loadManualDropdowns();
+        document.getElementById('manual-exam-modal').classList.remove('hidden');
+    }
+
+    function closeManualExamModal() {
+        document.getElementById('manual-exam-modal').classList.add('hidden');
+    }
+
+    async function editExam(id) {
+        try {
+            document.getElementById('manual-modal-title').textContent = 'Editar Examen Manual';
+            document.getElementById('manual-exam-id').value = id;
+            
+            await loadManualDropdowns();
+            
+            const res = await fetch(`/api/examenes/${id}`);
+            if (!res.ok) throw new Error('Error al cargar examen');
+            const examen = await res.json();
+            
+            document.getElementById('manual-titulo').value = examen.titulo;
+            document.getElementById('manual-estudiante').value = examen.nombre_estudiante || '';
+            document.getElementById('manual-seccion').value = examen.seccion_id || '';
+            
+            onManualSeccionChange();
+            document.getElementById('manual-plantilla').value = examen.plantilla_id || '';
+            document.getElementById('manual-observaciones').value = examen.observaciones || '';
+            
+            await loadPlantillaQuestions(examen.preguntas);
+            
+            document.getElementById('manual-exam-modal').classList.remove('hidden');
+        } catch (e) {
+            Swal.fire('Error', e.message, 'error');
+        }
+    }
+
+    async function saveManualExam(e) {
+        e.preventDefault();
+        
+        const id = document.getElementById('manual-exam-id').value;
+        const titulo = document.getElementById('manual-titulo').value;
+        const nombre_estudiante = document.getElementById('manual-estudiante').value;
+        const seccion_id = parseInt(document.getElementById('manual-seccion').value);
+        const plantilla_id = parseInt(document.getElementById('manual-plantilla').value);
+        const observaciones = document.getElementById('manual-observaciones').value;
+        
+        const respuestas = [];
+        const rows = document.querySelectorAll('.manual-question-row');
+        rows.forEach(row => {
+            const num = parseInt(row.getAttribute('data-number'));
+            const correcta = row.getAttribute('data-correcta');
+            const ptsTotal = parseFloat(row.getAttribute('data-pts-total'));
+            const selected = row.querySelector('.manual-ans-radio:checked');
+            const ans = selected ? selected.value : '';
+            const ptsObt = parseFloat(document.getElementById(`manual_pts_${num}`).value) || 0.0;
+            
+            respuestas.push({
+                numero: num,
+                respuesta_estudiante: ans,
+                respuesta_correcta: correcta,
+                puntos: ptsTotal,
+                puntos_obtenidos: ptsObt
+            });
+        });
+        
+        const data = {
+            titulo,
+            nombre_estudiante,
+            seccion_id,
+            plantilla_id,
+            observaciones,
+            respuestas,
+            estado: 'revisado'
+        };
+        
+        try {
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/examenes/${id}` : '/api/examenes';
+            
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!res.ok) throw new Error('Error al guardar el examen');
+            
+            Swal.fire('¡Éxito!', 'Examen guardado correctamente', 'success');
+            closeManualExamModal();
+            loadExams();
+        } catch (err) {
+            Swal.fire('Error', err.message, 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams   = new URLSearchParams(window.location.search);
+        const studentParam = urlParams.get('student');
+        const assignParam  = urlParams.get('assign');   // nombre pre-seleccionado para asignar
+
+        if (studentParam) {
+            const el = document.getElementById('filter-nombre');
+            if (el) el.value = studentParam;
+        }
+
+        loadSeccionesForFilter();
+        loadExams();
+
+        // Si viene ?assign=nombre (desde página de estudiantes), abrir modal con ese estudiante
+        if (assignParam && userRole !== 'estudiante') {
+            await openManualCreateModal();
+            const sel = document.getElementById('manual-estudiante');
+            if (sel) {
+                // Buscar la opción cuyo texto contiene el nombre
+                for (const opt of sel.options) {
+                    if (opt.value && opt.value.toLowerCase() === assignParam.toLowerCase()) {
+                        sel.value = opt.value;
+                        break;
+                    }
+                }
+            }
+            // Limpiar el parámetro de la URL sin recargar
+            history.replaceState(null, '', window.location.pathname);
+        }
+    });
+</script>
+{% endblock %}

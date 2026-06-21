@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GradeScanner - Sistema de Revisión de Notas con Escáner">
+    <meta name="theme-color" content="#4F46E5">
+    <title>{% block title %}GradeScanner{% endblock %}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-192.png') }}">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+
+    <!-- Estilos principales -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navegación -->
+    <nav class="bg-indigo-600 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center space-x-2">
+                    <i class="fas fa-graduation-cap text-2xl"></i>
+                    <span class="font-bold text-xl">GradeScanner</span>
+                </a>
+
+                <!-- Menú principal -->
+                <div class="hidden md:flex items-center space-x-1" id="nav-links">
+                    {% if session.get('user_id') %}
+                    <a href="/dashboard" class="nav-link hover:bg-indigo-700 px-3 py-2 rounded-md transition">
+                        <i class="fas fa-chart-line mr-2"></i>Dashboard
+                    </a>
+                    {% if session.get('user_role') in ['admin', 'profesor'] %}
+                    <a href="/scan" class="nav-link hover:bg-indigo-700 px-3 py-2 rounded-md transition">
+                        <i class="fas fa-camera mr-2"></i>Escanear
+                    </a>
+                    <a href="/templates" class="nav-link hover:bg-indigo-700 px-3 py-2 rounded-md transition">
+                        <i class="fas fa-clipboard-list mr-2"></i>Plantillas
+                    </a>
+                    <a href="/secciones" class="nav-link hover:bg-indigo-700 px-3 py-2 rounded-md transition">
+                        <i class="fas fa-users mr-2"></i>Secciones
+                    </a>
+                    <a href="/estudiantes" class="nav-link hover:bg-indigo-700 px-3 py-2 rounded-md transition">
+                        <i class="fas fa-user-graduate mr-2"></i>Estudiantes
+                    </a>
+                    {% endif %}
+                    <a href="/exams" class="nav-link hover:bg-indigo-700 px-3 py-2 rounded-md transition">
+                        <i class="fas fa-file-alt mr-2"></i>Exámenes
+                    </a>
+                    {% if session.get('user_role') == 'admin' %}
+                    <a href="/users" class="nav-link hover:bg-indigo-700 px-3 py-2 rounded-md transition">
+                        <i class="fas fa-users-cog mr-2"></i>Usuarios
+                    </a>
+                    {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Perfil y Dropdown -->
+                <div class="flex items-center space-x-3">
+                    {% if session.get('user_id') %}
+                    <div class="relative" id="profile-menu-container">
+                        <button onclick="toggleProfileDropdown()" class="flex items-center space-x-2 bg-indigo-700 hover:bg-indigo-800 px-3 py-2 rounded-lg transition focus:outline-none select-none">
+                            <i class="fas fa-user-circle text-xl text-indigo-200"></i>
+                            <span class="font-medium text-sm text-white hidden sm:inline-block max-w-[120px] truncate">{{ session.get('user_name') }}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase 
+                                {% if session.get('user_role') == 'admin' %}bg-red-500 text-white
+                                {% elif session.get('user_role') == 'profesor' %}bg-blue-500 text-white
+                                {% else %}bg-green-500 text-white{% endif %}">
+                                {{ session.get('user_role') }}
+                            </span>
+                            <i class="fas fa-chevron-down text-xs text-indigo-200"></i>
+                        </button>
+                        <!-- Dropdown Menu -->
+                        <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 text-gray-800 border border-gray-150">
+                            <div class="px-4 py-2 border-b border-gray-100 sm:hidden">
+                                <p class="text-xs text-gray-400">Usuario</p>
+                                <p class="font-semibold text-sm text-gray-800 truncate">{{ session.get('user_name') }}</p>
+                            </div>
+                            <button onclick="openChangePasswordModal()" class="w-full text-left px-4 py-2.5 hover:bg-gray-100 transition text-sm flex items-center text-gray-700">
+                                <i class="fas fa-key w-5 text-gray-400"></i>Cambiar Clave
+                            </button>
+                            <hr class="my-1 border-gray-100">
+                            <a href="/logout" class="px-4 py-2.5 hover:bg-gray-100 transition text-sm text-red-600 flex items-center">
+                                <i class="fas fa-sign-out-alt w-5 text-red-400"></i>Cerrar Sesión
+                            </a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <a href="/login" class="bg-white text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-lg font-medium transition shadow-md text-sm">
+                        <i class="fas fa-sign-in-alt mr-1"></i>Iniciar Sesión
+                    </a>
+                    {% endif %}
+
+                    <!-- Botón menú móvil -->
+                    <button id="mobile-menu-btn" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="md:hidden hover:bg-indigo-700 p-2 rounded focus:outline-none">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menú móvil -->
+        <div id="mobile-menu" class="hidden md:hidden bg-indigo-700 pb-4 border-t border-indigo-500">
+            {% if session.get('user_id') %}
+            <a href="/dashboard" class="nav-link block px-4 py-2 hover:bg-indigo-800">
+                <i class="fas fa-chart-line mr-2"></i>Dashboard
+            </a>
+            {% if session.get('user_role') in ['admin', 'profesor'] %}
+            <a href="/scan" class="nav-link block px-4 py-2 hover:bg-indigo-800">
+                <i class="fas fa-camera mr-2"></i>Escanear
+            </a>
+            <a href="/templates" class="nav-link block px-4 py-2 hover:bg-indigo-800">
+                <i class="fas fa-clipboard-list mr-2"></i>Plantillas
+            </a>
+            <a href="/secciones" class="nav-link block px-4 py-2 hover:bg-indigo-800">
+                <i class="fas fa-users mr-2"></i>Secciones
+            </a>
+            <a href="/estudiantes" class="nav-link block px-4 py-2 hover:bg-indigo-800">
+                <i class="fas fa-user-graduate mr-2"></i>Estudiantes
+            </a>
+            {% endif %}
+            <a href="/exams" class="nav-link block px-4 py-2 hover:bg-indigo-800">
+                <i class="fas fa-file-alt mr-2"></i>Exámenes
+            </a>
+            {% if session.get('user_role') == 'admin' %}
+            <a href="/users" class="nav-link block px-4 py-2 hover:bg-indigo-800">
+                <i class="fas fa-users-cog mr-2"></i>Usuarios
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Modal Cambiar Contraseña Propia -->
+    <div id="change-pwd-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-key text-indigo-600 mr-2"></i>Cambiar Contraseña</h3>
+                    <button onclick="closeChangePasswordModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <form id="change-pwd-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-1" for="pwd-actual">Contraseña Actual</label>
+                        <input id="pwd-actual" type="password" required placeholder="Contraseña actual"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-1" for="pwd-nueva">Nueva Contraseña</label>
+                        <input id="pwd-nueva" type="password" required placeholder="Mínimo 6 caracteres"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onclick="closeChangePasswordModal()" class="bg-gray-150 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition text-sm">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition text-sm shadow">
+                            Cambiar Contraseña
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <main class="container mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-400 py-6 mt-12">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; <span id="footer-year"></span> GradeScanner &mdash; Sistema de Evaluación para Bachillerato</p>
+            <p class="text-sm mt-2">Revisión de exámenes potenciada por OCR e IA</p>
+        </div>
+    </footer>
+
+    <!-- Scripts principales -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+    <script>
+        // Año dinámico en footer
+        document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+        // Resaltar página activa en el nav
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && href !== '/' && currentPath.startsWith(href)) {
+                link.classList.add('bg-indigo-800', 'font-semibold');
+            } else if (href === '/' && currentPath === '/') {
+                link.classList.add('bg-indigo-800', 'font-semibold');
+            }
+        });
+
+        // Funciones Dropdown de Perfil
+        function toggleProfileDropdown() {
+            const dropdown = document.getElementById('profile-dropdown');
+            if (dropdown) dropdown.classList.toggle('hidden');
+        }
+
+        // Cerrar dropdown al hacer clic afuera
+        window.addEventListener('click', function(e) {
+            const container = document.getElementById('profile-menu-container');
+            const dropdown = document.getElementById('profile-dropdown');
+            if (dropdown && container && !container.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Cambiar contraseña modal
+        function openChangePasswordModal() {
+            const dropdown = document.getElementById('profile-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            document.getElementById('change-pwd-form').reset();
+            document.getElementById('change-pwd-modal').classList.remove('hidden');
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('change-pwd-modal').classList.add('hidden');
+        }
+
+        document.getElementById('change-pwd-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const current_password = document.getElementById('pwd-actual').value;
+            const new_password = document.getElementById('pwd-nueva').value;
+
+            if (new_password.length < 6) {
+                Swal.fire('Error', 'La nueva contraseña debe tener al menos 6 caracteres.', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/users/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_password, new_password })
+                });
+                const data = await res.json();
+                
+                if (!res.ok) throw new Error(data.error || 'Error al cambiar contraseña');
+                
+                Swal.fire('¡Éxito!', 'Tu contraseña ha sido cambiada correctamente.', 'success');
+                closeChangePasswordModal();
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+            }
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+
+    <!-- Script del Service Worker para PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/service-worker.js')
+                .then(reg => console.log('SW registrado'))
+                .catch(err => console.log('SW error:', err));
+        }
+    </script>
+</body>
+
+</html>

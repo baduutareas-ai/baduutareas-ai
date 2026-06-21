@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GradeScanner - Iniciar Sesión">
+    <title>Iniciar Sesión - GradeScanner</title>
+    <!-- Estilos -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link class="favicon" rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+        .bg-gradient {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+        }
+        .demo-card {
+            transition: all 0.2s ease;
+        }
+        .demo-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-gradient min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <!-- Floating background circles for premium look -->
+    <div class="absolute w-96 h-96 rounded-full bg-white bg-opacity-10 -top-12 -left-12 blur-2xl"></div>
+    <div class="absolute w-96 h-96 rounded-full bg-white bg-opacity-10 -bottom-12 -right-12 blur-2xl"></div>
+
+    <div class="w-full max-w-4xl grid md:grid-cols-12 gap-8 z-10">
+        <!-- Login Form Panel -->
+        <div class="md:col-span-7 glass rounded-2xl shadow-2xl p-8 flex flex-col justify-center">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
+                    <i class="fas fa-graduation-cap text-3xl"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900">GradeScanner</h1>
+                <p class="text-gray-500 mt-1">Ingresa tus credenciales para acceder</p>
+            </div>
+
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label class="block text-gray-700 text-sm font-semibold mb-2" for="username">Usuario</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <input id="username" type="text" placeholder="Ingresa tu usuario" required
+                            class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-white bg-opacity-50">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-gray-700 text-sm font-semibold" for="password">Contraseña</label>
+                    </div>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <input id="password" type="password" placeholder="••••••••" required
+                            class="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-white bg-opacity-50">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                            <i id="password-toggle-icon" class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg flex justify-center items-center">
+                    <span>Iniciar Sesión</span>
+                    <i class="fas fa-arrow-right ml-2" id="btn-icon"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Demo Accounts Panel -->
+        <div class="md:col-span-5 flex flex-col justify-center text-white space-y-6">
+            <div>
+                <h2 class="text-2xl font-bold mb-2">Acceso de Demostración</h2>
+                <p class="text-indigo-200 text-sm">Haz clic en cualquier perfil para rellenar los datos de inicio de sesión automáticamente.</p>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Admin Card -->
+                <div onclick="selectDemo('admin', 'admin123')" 
+                    class="demo-card cursor-pointer bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 rounded-2xl p-4 flex items-center space-x-4 shadow">
+                    <div class="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center shadow">
+                        <i class="fas fa-user-shield text-xl text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold">Administrador</h3>
+                        <p class="text-xs text-indigo-200">Usuario: <strong class="text-white">admin</strong> | Clave: <strong class="text-white">admin123</strong></p>
+                    </div>
+                </div>
+
+                <!-- Teacher Card -->
+                <div onclick="selectDemo('profesor', 'profesor123')" 
+                    class="demo-card cursor-pointer bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 rounded-2xl p-4 flex items-center space-x-4 shadow">
+                    <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow">
+                        <i class="fas fa-chalkboard-teacher text-xl text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold">Profesor</h3>
+                        <p class="text-xs text-indigo-200">Usuario: <strong class="text-white">profesor</strong> | Clave: <strong class="text-white">profesor123</strong></p>
+                    </div>
+                </div>
+
+                <!-- Student Card -->
+                <div onclick="selectDemo('estudiante', 'estudiante123')" 
+                    class="demo-card cursor-pointer bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 rounded-2xl p-4 flex items-center space-x-4 shadow">
+                    <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow">
+                        <i class="fas fa-user-graduate text-xl text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold">Estudiante</h3>
+                        <p class="text-xs text-indigo-200">Usuario: <strong class="text-white">estudiante</strong> | Clave: <strong class="text-white">estudiante123</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('password');
+            const icon = document.getElementById('password-toggle-icon');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                pwdInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function selectDemo(username, password) {
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+            Utils.toast('Credenciales de demostración cargadas', 'info');
+        }
+
+        // Simulación sencilla de Toast
+        const Utils = {
+            toast: (message, type = 'info') => {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2500,
+                    timerProgressBar: true,
+                    icon: type,
+                    title: message
+                });
+            }
+        };
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const submitBtn = document.getElementById('submit-btn');
+            const btnIcon = document.getElementById('btn-icon');
+            
+            // Loading state
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-75');
+            btnIcon.className = 'fas fa-spinner fa-spin ml-2';
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Error de autenticación');
+                }
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Bienvenido!',
+                    text: `Sesión iniciada como ${data.user.nombre}`,
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const nextUrl = urlParams.get('next') || '/dashboard';
+                    window.location.href = nextUrl;
+                });
+                
+            } catch (err) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de inicio de sesión',
+                    text: err.message,
+                    confirmButtonColor: '#4f46e5'
+                });
+                
+                // Reset state
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-75');
+                btnIcon.className = 'fas fa-arrow-right ml-2';
+            }
+        });
+    </script>
+</body>
+</html>

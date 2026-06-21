@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Usuarios - GradeScanner{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">
+                <i class="fas fa-users-cog text-indigo-600 mr-2"></i>Gestión de Usuarios
+            </h1>
+            <p class="text-gray-600 mt-2">Crea, edita y administra los accesos y roles del sistema</p>
+        </div>
+        <button onclick="openCreateModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-lg font-medium transition shadow-md flex items-center justify-center whitespace-nowrap">
+            <i class="fas fa-plus mr-2"></i>Nuevo Usuario
+        </button>
+    </div>
+
+    <!-- Tabla de Usuarios -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[800px]">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Nombre completo</th>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Usuario</th>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Correo Electrónico</th>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Sección</th>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Rol</th>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Estado</th>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="users-list" class="divide-y divide-gray-200">
+                    <!-- Se llena con JS -->
+                    <tr>
+                        <td colspan="7" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Cargando usuarios...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Usuario -->
+<div id="create-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-user-plus text-indigo-600 mr-2"></i>Crear Nuevo Usuario</h3>
+                <button onclick="closeCreateModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="create-user-form" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-semibold mb-1" for="create-nombre">Nombre Completo</label>
+                    <input id="create-nombre" type="text" placeholder="Ej: Profesor Carlos Pérez" required
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-1" for="create-username">Usuario</label>
+                        <input id="create-username" type="text" placeholder="cperez" required
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-1" for="create-role">Rol / Nivel</label>
+                        <select id="create-role" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                            <option value="profesor">Profesor (Estándar)</option>
+                            <option value="estudiante">Estudiante (Solo Lectura)</option>
+                            <option value="admin">Administrador (Total)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 text-sm font-semibold mb-1" for="create-email">Correo Electrónico</label>
+                    <input id="create-email" type="email" placeholder="carlos.perez@colegio.com"
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                </div>
+
+                <div id="create-seccion-group" class="hidden">
+                    <label class="block text-gray-700 text-sm font-semibold mb-1" for="create-seccion">Sección</label>
+                    <select id="create-seccion" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                        <option value="">Sin sección</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 text-sm font-semibold mb-1" for="create-password">Contraseña Inicial</label>
+                    <input id="create-password" type="password" placeholder="••••••••" required
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t">
+                    <button type="button" onclick="closeCreateModal()" class="bg-gray-150 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition shadow">
+                        Crear Usuario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Usuario / Cambiar Contraseña -->
+<div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-user-edit text-indigo-600 mr-2"></i>Editar Usuario</h3>
+                <button onclick="closeEditModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="edit-user-form" class="space-y-4">
+                <input id="edit-id" type="hidden">
+                
+                <div>
+                    <label class="block text-gray-700 text-sm font-semibold mb-1" for="edit-nombre">Nombre Completo</label>
+                    <input id="edit-nombre" type="text" required
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-1">Usuario</label>
+                        <input id="edit-username" type="text" disabled class="w-full p-3 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-1" for="edit-role">Rol / Nivel</label>
+                        <select id="edit-role" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                            <option value="profesor">Profesor (Estándar)</option>
+                            <option value="estudiante">Estudiante (Solo Lectura)</option>
+                            <option value="admin">Administrador (Total)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 text-sm font-semibold mb-1" for="edit-email">Correo Electrónico</label>
+                    <input id="edit-email" type="email"
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                </div>
+
+                <div id="edit-seccion-group" class="hidden">
+                    <label class="block text-gray-700 text-sm font-semibold mb-1" for="edit-seccion">Sección</label>
+                    <select id="edit-seccion" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                        <option value="">Sin sección</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-1" for="edit-activo">Estado de Cuenta</label>
+                        <select id="edit-activo" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                            <option value="true">Activo</option>
+                            <option value="false">Inactivo / Suspendido</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-1" for="edit-password">Nueva Contraseña (Opcional)</label>
+                        <input id="edit-password" type="password" placeholder="Solo si desea cambiarla"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t">
+                    <button type="button" onclick="closeEditModal()" class="bg-gray-150 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition shadow">
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let usersList = [];
+    let allSecciones = [];
+
+    async function loadSeccionesDropdowns() {
+        try {
+            const res = await fetch('/api/secciones');
+            if (!res.ok) throw new Error('Error al cargar secciones');
+            allSecciones = await res.json();
+            const createSelect = document.getElementById('create-seccion');
+            const editSelect = document.getElementById('edit-seccion');
+            const optsHtml = '<option value="">Sin sección</option>' + 
+                allSecciones.map(s => `<option value="${s.id}">${s.nombre_completo}</option>`).join('');
+            createSelect.innerHTML = optsHtml;
+            editSelect.innerHTML = optsHtml;
+        } catch (e) {
+            console.error('Error cargando secciones', e);
+        }
+    }
+
+    document.getElementById('create-role').addEventListener('change', function() {
+        document.getElementById('create-seccion-group').classList.toggle('hidden', this.value !== 'estudiante');
+    });
+
+    document.getElementById('edit-role').addEventListener('change', function() {
+        document.getElementById('edit-seccion-group').classList.toggle('hidden', this.value !== 'estudiante');
+    });
+
+    async function loadUsers() {
+        try {
+            const res = await fetch('/api/users');
+            if (!res.ok) throw new Error('Error al cargar usuarios');
+            usersList = await res.json();
+            renderUsers();
+        } catch (e) {
+            Swal.fire('Error', e.message, 'error');
+        }
+    }
+
+    function renderUsers() {
+        const tbody = document.getElementById('users-list');
+        if (usersList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">No hay usuarios registrados</td></tr>';
+            return;
+        }
+
+        const roleBadges = {
+            'admin': 'bg-red-100 text-red-800 border border-red-200',
+            'profesor': 'bg-blue-100 text-blue-800 border border-blue-200',
+            'estudiante': 'bg-green-100 text-green-800 border border-green-200'
+        };
+
+        const currentUserId = {{ session.get('user_id', 0) }};
+
+        tbody.innerHTML = usersList.map(u => {
+            const isSelf = u.id === currentUserId;
+            return `
+            <tr class="hover:bg-gray-50 transition">
+                <td class="py-4 px-6 font-semibold text-gray-800">
+                    ${u.nombre} ${isSelf ? '<span class="ml-2 text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-medium">Tú</span>' : ''}
+                </td>
+                <td class="py-4 px-6 text-gray-600 font-mono text-sm">${u.username}</td>
+                <td class="py-4 px-6 text-gray-500">${u.email || '-'}</td>
+                <td class="py-4 px-6 text-gray-500 text-sm">${u.seccion ? u.seccion.nombre_completo : (u.role === 'estudiante' ? '<span class="text-gray-400 italic">Sin sección</span>' : '-')}</td>
+                <td class="py-4 px-6">
+                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${roleBadges[u.role] || 'bg-gray-100'}">${u.role}</span>
+                </td>
+                <td class="py-4 px-6">
+                    <span class="inline-flex items-center">
+                        <span class="h-2 w-2 rounded-full mr-2 ${u.activo ? 'bg-green-500 animate-pulse' : 'bg-red-400'}"></span>
+                        <span class="text-sm font-medium ${u.activo ? 'text-gray-700' : 'text-gray-400'}">${u.activo ? 'Activo' : 'Suspendido'}</span>
+                    </span>
+                </td>
+                <td class="py-4 px-6 text-center whitespace-nowrap">
+                    <button onclick="openEditModal(${u.id})" class="text-indigo-600 hover:text-indigo-800 mr-4 font-medium transition" title="Editar / Restablecer clave">
+                        <i class="fas fa-edit mr-1"></i>Editar
+                    </button>
+                    <button onclick="deleteUser(${u.id}, '${u.username}')" 
+                        class="text-red-500 hover:text-red-700 font-medium transition ${isSelf ? 'opacity-30 cursor-not-allowed' : ''}" 
+                        ${isSelf ? 'disabled' : ''} title="Eliminar cuenta">
+                        <i class="fas fa-trash-alt mr-1"></i>Eliminar
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // Modal Crear
+    function openCreateModal() {
+        document.getElementById('create-user-form').reset();
+        document.getElementById('create-modal').classList.remove('hidden');
+    }
+    function closeCreateModal() {
+        document.getElementById('create-modal').classList.add('hidden');
+    }
+
+    // Modal Editar
+    function openEditModal(id) {
+        const u = usersList.find(x => x.id === id);
+        if (!u) return;
+        
+        document.getElementById('edit-id').value = u.id;
+        document.getElementById('edit-nombre').value = u.nombre;
+        document.getElementById('edit-username').value = u.username;
+        document.getElementById('edit-email').value = u.email || '';
+        document.getElementById('edit-role').value = u.role;
+        document.getElementById('edit-activo').value = u.activo ? "true" : "false";
+        document.getElementById('edit-password').value = ""; // Limpiar clave
+        
+        // Sección
+        const editSecGroup = document.getElementById('edit-seccion-group');
+        if (u.role === 'estudiante') {
+            editSecGroup.classList.remove('hidden');
+            document.getElementById('edit-seccion').value = u.seccion_id || '';
+        } else {
+            editSecGroup.classList.add('hidden');
+        }
+        
+        document.getElementById('edit-modal').classList.remove('hidden');
+    }
+    function closeEditModal() {
+        document.getElementById('edit-modal').classList.add('hidden');
+    }
+
+    // Crear Submit
+    document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('create-username').value.trim();
+        const nombre = document.getElementById('create-nombre').value.trim();
+        const email = document.getElementById('create-email').value.trim();
+        const role = document.getElementById('create-role').value;
+        const password = document.getElementById('create-password').value;
+        const seccion_id = role === 'estudiante' ? parseInt(document.getElementById('create-seccion').value) || null : null;
+
+        try {
+            const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, nombre, email, role, password, seccion_id })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error al crear usuario');
+            
+            Swal.fire('¡Éxito!', 'El usuario ha sido creado correctamente.', 'success');
+            closeCreateModal();
+            loadUsers();
+        } catch (err) {
+            Swal.fire('Error', err.message, 'error');
+        }
+    });
+
+    // Editar Submit
+    document.getElementById('edit-user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-id').value;
+        const nombre = document.getElementById('edit-nombre').value.trim();
+        const email = document.getElementById('edit-email').value.trim();
+        const role = document.getElementById('edit-role').value;
+        const activo = document.getElementById('edit-activo').value === "true";
+        const password = document.getElementById('edit-password').value;
+        const seccion_id = role === 'estudiante' ? parseInt(document.getElementById('edit-seccion').value) || null : null;
+
+        try {
+            const res = await fetch(`/api/users/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre, email, role, activo, password, seccion_id })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error al guardar cambios');
+            
+            Swal.fire('¡Éxito!', 'Los datos del usuario han sido actualizados.', 'success');
+            closeEditModal();
+            loadUsers();
+        } catch (err) {
+            Swal.fire('Error', err.message, 'error');
+        }
+    });
+
+    // Eliminar Usuario
+    async function deleteUser(id, username) {
+        const confirm = await Swal.fire({
+            title: `¿Eliminar a "${username}"?`,
+            text: "Esta acción no se puede deshacer. Se removerán los privilegios del usuario.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (confirm.isConfirmed) {
+            try {
+                const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Error al eliminar usuario');
+                
+                Swal.fire('Eliminado', 'El usuario fue removido.', 'success');
+                loadUsers();
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadSeccionesDropdowns();
+        loadUsers();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}Estudiantes - GradeScanner{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">
+                <i class="fas fa-user-graduate text-indigo-600 mr-2"></i>Rendimiento de Estudiantes
+            </h1>
+            <p class="text-gray-600 mt-2">Consulta datos académicos y asigna exámenes a los alumnos</p>
+        </div>
+    </div>
+
+    <!-- Buscador -->
+    <div class="bg-white rounded-xl shadow-lg p-4 mb-6">
+        <input id="search-student" type="text"
+            placeholder="🔍 Buscar por nombre, usuario o correo..."
+            class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+            oninput="filterStudents()">
+    </div>
+
+    <!-- Tabla -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[900px]">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Nombre completo</th>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Usuario</th>
+                        <th class="text-left py-4 px-6 text-gray-600 font-medium">Correo</th>
+                        <th class="text-center py-4 px-6 text-gray-600 font-medium">Exámenes</th>
+                        <th class="text-center py-4 px-6 text-gray-600 font-medium">Promedio</th>
+                        <th class="text-center py-4 px-6 text-gray-600 font-medium">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="students-list" class="divide-y divide-gray-200">
+                    <tr>
+                        <td colspan="6" class="text-center py-10 text-gray-400">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Cargando estudiantes...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL: ASIGNAR EXAMEN ===== -->
+<div id="assign-exam-modal"
+    class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-start justify-center overflow-y-auto p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8">
+        <div class="p-6">
+            <!-- Header modal -->
+            <div class="flex justify-between items-start mb-5 border-b pb-4">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900">
+                        <i class="fas fa-file-medical text-indigo-600 mr-2"></i>Asignar Examen Corregido
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Estudiante: <strong id="assign-student-label" class="text-indigo-700">—</strong>
+                    </p>
+                </div>
+                <button onclick="closeAssignModal()" class="text-gray-400 hover:text-red-500 text-2xl leading-none transition">&times;</button>
+            </div>
+
+            <form id="assign-exam-form" onsubmit="saveAssignExam(event)">
+                <input type="hidden" id="assign-student-name">
+
+                <!-- Fila 1: Título + Sección -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Título / Evaluación</label>
+                        <input type="text" id="assign-titulo" required
+                            class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-400"
+                            placeholder="Ej: Examen 1er Lapso">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sección</label>
+                        <select id="assign-seccion" required
+                            class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-400"
+                            onchange="onAssignSeccionChange()">
+                            <option value="">Seleccionar sección...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Plantilla -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Plantilla / Clave de Respuestas</label>
+                    <select id="assign-plantilla" required
+                        class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-400"
+                        onchange="loadAssignQuestions()">
+                        <option value="">Seleccionar plantilla...</option>
+                    </select>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                    <textarea id="assign-observaciones"
+                        class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-400"
+                        rows="2" placeholder="Notas adicionales..."></textarea>
+                </div>
+
+                <!-- Preguntas y respuestas -->
+                <div class="border-t pt-4">
+                    <h4 class="font-semibold text-gray-800 mb-3 flex items-center text-sm">
+                        <i class="fas fa-list-ol text-indigo-500 mr-2"></i>Respuestas por Pregunta
+                        <span id="assign-puntaje-total" class="ml-auto text-xs text-gray-400 font-normal"></span>
+                    </h4>
+                    <div id="assign-questions-list"
+                        class="space-y-2 max-h-60 overflow-y-auto bg-gray-50 p-3 rounded-lg border text-sm">
+                        <p class="text-xs text-gray-400 italic text-center py-4">
+                            <i class="fas fa-arrow-up mr-1"></i>Selecciona una sección y plantilla para cargar las preguntas
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Nota calculada -->
+                <div id="assign-nota-preview"
+                    class="hidden mt-4 rounded-xl p-4 flex items-center justify-between border">
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Nota calculada</p>
+                        <p class="text-xs text-gray-400" id="assign-nota-detalle">0 / 0 pts</p>
+                    </div>
+                    <p class="text-5xl font-black" id="assign-nota-value">—</p>
+                    <p class="text-lg text-gray-400 self-end pb-1">/20</p>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex justify-end space-x-3 mt-6 border-t pt-4">
+                    <button type="button" onclick="closeAssignModal()"
+                        class="px-5 py-2.5 border rounded-lg hover:bg-gray-50 text-gray-700 font-medium">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                        class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold shadow flex items-center">
+                        <i class="fas fa-save mr-2"></i>Guardar Examen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let studentsList = [];
+    let filteredList  = [];
+    let assignSections   = [];
+    let assignPlantillas = [];
+
+    // ── Carga inicial ────────────────────────────────────────────────────
+    async function loadStudents() {
+        try {
+            const res = await fetch('/api/estudiantes');
+            if (!res.ok) throw new Error('Error al obtener la lista de estudiantes');
+            studentsList = await res.json();
+            filteredList = studentsList;
+            renderStudents();
+        } catch (e) {
+            Swal.fire('Error', e.message, 'error');
+        }
+    }
+
+    // ── Renderizado de tabla ─────────────────────────────────────────────
+    function renderStudents() {
+        const tbody = document.getElementById('students-list');
+        if (!filteredList.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-400">No se encontraron estudiantes</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filteredList.map(est => {
+            const avg = est.promedio_notas ?? 0;
+            const hasMark = est.total_examenes > 0;
+            const notaColor = !hasMark ? 'text-gray-400 bg-gray-50'
+                : avg >= 10 ? 'text-green-700 bg-green-50'
+                : avg >= 7  ? 'text-yellow-700 bg-yellow-50'
+                : 'text-red-700 bg-red-50';
+
+            const safeName = est.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+            return `
+            <tr class="hover:bg-indigo-50/30 transition">
+                <td class="py-4 px-6 font-semibold text-gray-800">
+                    <i class="fas fa-user-circle text-indigo-400 mr-2"></i>${est.nombre}
+                </td>
+                <td class="py-4 px-6 text-gray-500 font-mono text-sm">${est.username}</td>
+                <td class="py-4 px-6 text-gray-500 text-sm">${est.email || '—'}</td>
+                <td class="py-4 px-6 text-center">
+                    <span class="font-bold text-gray-700 text-lg">${est.total_examenes}</span>
+                </td>
+                <td class="py-4 px-6 text-center">
+                    <span class="px-3 py-1.5 rounded-full font-bold text-sm ${notaColor}">
+                        ${hasMark ? avg.toFixed(2) : '—'}
+                    </span>
+                </td>
+                <td class="py-4 px-6 text-center whitespace-nowrap space-x-2">
+                    <button
+                        onclick="openAssignModal('${safeName}')"
+                        class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition">
+                        <i class="fas fa-file-medical mr-1"></i>Asignar Examen
+                    </button>
+                    <a href="/exams?student=${encodeURIComponent(est.nombre)}"
+                       class="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                        <i class="fas fa-history mr-1"></i>Ver Exámenes
+                    </a>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Búsqueda ─────────────────────────────────────────────────────────
+    function filterStudents() {
+        const q = document.getElementById('search-student').value.toLowerCase().trim();
+        filteredList = q
+            ? studentsList.filter(e =>
+                e.nombre.toLowerCase().includes(q) ||
+                e.username.toLowerCase().includes(q) ||
+                (e.email && e.email.toLowerCase().includes(q)))
+            : studentsList;
+        renderStudents();
+    }
+
+    // ── Modal: abrir ──────────────────────────────────────────────────────
+    async function openAssignModal(studentName) {
+        // Reset
+        document.getElementById('assign-exam-form').reset();
+        document.getElementById('assign-student-name').value  = studentName;
+        document.getElementById('assign-student-label').textContent = studentName;
+        document.getElementById('assign-questions-list').innerHTML =
+            '<p class="text-xs text-gray-400 italic text-center py-4"><i class="fas fa-arrow-up mr-1"></i>Selecciona sección y plantilla</p>';
+        document.getElementById('assign-nota-preview').classList.add('hidden');
+        document.getElementById('assign-puntaje-total').textContent = '';
+
+        // Cargar secciones
+        try {
+            const r = await fetch('/api/secciones');
+            assignSections = await r.json();
+            const sel = document.getElementById('assign-seccion');
+            sel.innerHTML = '<option value="">Seleccionar sección...</option>';
+            assignSections.forEach(s => {
+                const o = document.createElement('option');
+                o.value = s.id; o.textContent = s.nombre_completo;
+                sel.appendChild(o);
+            });
+        } catch(e) { console.error(e); }
+
+        // Cargar plantillas
+        try {
+            const r = await fetch('/api/plantillas');
+            assignPlantillas = await r.json();
+        } catch(e) { console.error(e); }
+
+        document.getElementById('assign-exam-modal').classList.remove('hidden');
+    }
+
+    // ── Modal: cerrar ─────────────────────────────────────────────────────
+    function closeAssignModal() {
+        document.getElementById('assign-exam-modal').classList.add('hidden');
+    }
+
+    // ── Cambio de sección → filtrar plantillas ────────────────────────────
+    function onAssignSeccionChange() {
+        const secId = parseInt(document.getElementById('assign-seccion').value);
+        const sel   = document.getElementById('assign-plantilla');
+        sel.innerHTML = '<option value="">Seleccionar plantilla...</option>';
+
+        const list = secId ? assignPlantillas.filter(p => p.seccion_id === secId) : assignPlantillas;
+        list.forEach(p => {
+            const o = document.createElement('option');
+            o.value = p.id; o.textContent = p.nombre;
+            sel.appendChild(o);
+        });
+
+        document.getElementById('assign-questions-list').innerHTML =
+            '<p class="text-xs text-gray-400 italic text-center py-4">Ahora selecciona una plantilla</p>';
+        document.getElementById('assign-nota-preview').classList.add('hidden');
+    }
+
+    // ── Cargar preguntas desde plantilla ─────────────────────────────────
+    async function loadAssignQuestions() {
+        const pId = parseInt(document.getElementById('assign-plantilla').value);
+        const container = document.getElementById('assign-questions-list');
+        document.getElementById('assign-nota-preview').classList.add('hidden');
+        document.getElementById('assign-puntaje-total').textContent = '';
+
+        if (!pId) {
+            container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">Selecciona una plantilla</p>';
+            return;
+        }
+
+        const plantilla = assignPlantillas.find(p => p.id === pId);
+        if (!plantilla) return;
+
+        let correctas = [];
+        try {
+            correctas = typeof plantilla.respuestas_correctas === 'string'
+                ? JSON.parse(plantilla.respuestas_correctas)
+                : (plantilla.respuestas_correctas || []);
+        } catch(e) { console.error(e); }
+
+        if (!correctas.length) {
+            container.innerHTML = '<p class="text-xs text-red-500 italic text-center py-4">Esta plantilla no tiene respuestas configuradas</p>';
+            return;
+        }
+
+        // Determinar opciones de respuesta
+        const allResp = new Set(correctas.map(r => r.respuesta));
+        let opts = ['A','B','C','D'];
+        if (allResp.has('V') || allResp.has('F')) {
+            opts = ['V','F'];
+        } else {
+            const maxChar = Array.from(allResp).reduce((m,c) => c > m ? c : m, 'D');
+            const maxCode = maxChar.charCodeAt(0);
+            if (maxCode >= 65 && maxCode <= 70) {
+                opts = [];
+                for (let c = 65; c <= maxCode; c++) opts.push(String.fromCharCode(c));
+            }
+        }
+
+        const totalPts = correctas.reduce((s, c) => s + (c.puntos || 1), 0);
+        document.getElementById('assign-puntaje-total').textContent =
+            `Puntaje total plantilla: ${plantilla.puntaje_total || totalPts}`;
+
+        container.innerHTML = correctas.map(c => {
+            const num = c.pregunta;
+            const pts = c.puntos || 1;
+            return `
+            <div class="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 assign-q-row"
+                 data-number="${num}" data-pts-total="${pts}" data-correcta="${c.respuesta}">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="w-7 font-bold text-gray-600 text-xs shrink-0">P${num}.</span>
+                    <div class="flex gap-3 flex-wrap">
+                        ${opts.map(opt => `
+                        <label class="flex items-center gap-1 cursor-pointer select-none">
+                            <input type="radio" name="asgn_${num}" value="${opt}"
+                                class="assign-ans-radio accent-indigo-600"
+                                onchange="assignAutoScore(${num})">
+                            <span class="text-xs font-bold text-gray-700">${opt}</span>
+                        </label>`).join('')}
+                        <label class="flex items-center gap-1 cursor-pointer select-none">
+                            <input type="radio" name="asgn_${num}" value="" checked
+                                class="assign-ans-radio" onchange="assignAutoScore(${num})">
+                            <span class="text-xs text-gray-400 italic">—</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1 text-xs text-gray-500 shrink-0">
+                    <input type="number" step="0.1" value="0" max="${pts}" min="0"
+                        id="asgn_pts_${num}"
+                        class="w-14 p-1 border rounded text-center font-bold text-gray-800 assign-pts"
+                        onchange="recalcNota()">
+                    <span class="text-gray-400">/${pts}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        recalcNota();
+    }
+
+    // ── Auto-score al seleccionar respuesta ──────────────────────────────
+    function assignAutoScore(num) {
+        const row = document.querySelector(`.assign-q-row[data-number="${num}"]`);
+        if (!row) return;
+        const sel     = row.querySelector('.assign-ans-radio:checked');
+        const ans     = sel ? sel.value : '';
+        const correct = row.getAttribute('data-correcta');
+        const pts     = parseFloat(row.getAttribute('data-pts-total')) || 0;
+        const inp     = document.getElementById(`asgn_pts_${num}`);
+        if (inp) inp.value = (ans === correct) ? pts : 0;
+        recalcNota();
+    }
+
+    // ── Recalcular nota total ─────────────────────────────────────────────
+    function recalcNota() {
+        const pId = parseInt(document.getElementById('assign-plantilla').value);
+        const plantilla = assignPlantillas.find(p => p.id === pId);
+        if (!plantilla) return;
+
+        let suma = 0;
+        document.querySelectorAll('.assign-pts').forEach(inp => suma += parseFloat(inp.value) || 0);
+
+        const base = parseFloat(plantilla.puntaje_total) || 1;
+        const nota = Math.round((suma / base) * 20 * 100) / 100;
+
+        const preview = document.getElementById('assign-nota-preview');
+        const valEl   = document.getElementById('assign-nota-value');
+        const detEl   = document.getElementById('assign-nota-detalle');
+
+        preview.classList.remove('hidden');
+
+        // Color de la nota
+        const color = nota >= 10 ? '#16a34a' : nota >= 7 ? '#ca8a04' : '#dc2626';
+        const bgColor = nota >= 10 ? '#f0fdf4' : nota >= 7 ? '#fefce8' : '#fef2f2';
+        const borderColor = nota >= 10 ? '#bbf7d0' : nota >= 7 ? '#fef08a' : '#fecaca';
+
+        preview.style.background = bgColor;
+        preview.style.borderColor = borderColor;
+        valEl.style.color = color;
+        valEl.textContent = nota.toFixed(2);
+        detEl.textContent = `${suma.toFixed(1)} / ${base} puntos obtenidos`;
+    }
+
+    // ── Guardar examen ────────────────────────────────────────────────────
+    async function saveAssignExam(e) {
+        e.preventDefault();
+
+        const studentName = document.getElementById('assign-student-name').value;
+        const titulo      = document.getElementById('assign-titulo').value.trim();
+        const seccion_id  = parseInt(document.getElementById('assign-seccion').value);
+        const plantilla_id= parseInt(document.getElementById('assign-plantilla').value);
+        const observaciones = document.getElementById('assign-observaciones').value;
+
+        const respuestas = [];
+        document.querySelectorAll('.assign-q-row').forEach(row => {
+            const num   = parseInt(row.getAttribute('data-number'));
+            const correcta = row.getAttribute('data-correcta');
+            const pts   = parseFloat(row.getAttribute('data-pts-total'));
+            const sel   = row.querySelector('.assign-ans-radio:checked');
+            const ans   = sel ? sel.value : '';
+            const ptsObt = parseFloat(document.getElementById(`asgn_pts_${num}`).value) || 0;
+            respuestas.push({ numero: num, respuesta_estudiante: ans,
+                respuesta_correcta: correcta, puntos: pts, puntos_obtenidos: ptsObt });
+        });
+
+        if (!studentName || !titulo || !seccion_id || !plantilla_id) {
+            Swal.fire('Atención', 'Completa todos los campos requeridos', 'warning');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/examenes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    titulo, nombre_estudiante: studentName,
+                    seccion_id, plantilla_id, observaciones,
+                    respuestas, estado: 'revisado'
+                })
+            });
+            if (!res.ok) throw new Error('Error al guardar el examen');
+
+            await Swal.fire({
+                title: '¡Examen asignado!',
+                html: `<p>Examen <strong>"${titulo}"</strong> guardado para<br><strong>${studentName}</strong></p>`,
+                icon: 'success',
+                confirmButtonColor: '#4F46E5'
+            });
+            closeAssignModal();
+            loadStudents(); // refresca conteos
+        } catch (err) {
+            Swal.fire('Error', err.message, 'error');
+        }
+    }
+
+    // ── Cerrar modal con Escape ───────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeAssignModal();
+    });
+
+    document.addEventListener('DOMContentLoaded', loadStudents);
+</script>
+{% endblock %}
